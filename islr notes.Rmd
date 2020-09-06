@@ -1,0 +1,64 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+
+
+
+#ISLR.R
+  tufte::tufte_handout: default
+  tufte::tufte_html: default
+
+https://rstudio.github.io/tufte/
+https://bookdown.org/yihui/rmarkdown/tufte-handouts.html
+
+
+Auto
+Gas mileage, horsepower, and other information for cars.
+Boston
+Housing values and other information about Boston suburbs.
+Caravan
+Information about individuals offered caravan insurance.
+Carseats
+Information about car seat sales in 400 stores.
+College
+Demographic characteristics, tuition, and more for USA colleges.
+Default
+Customer default records for a credit card company.
+Hitters
+Records and salaries for baseball players.
+Khan
+Gene expression measurements for four cancer types.
+NCI60
+Gene expression measurements for 64 cancer cell lines.
+OJ
+Sales information for Citrus Hill and Minute Maid orange juice.
+Portfolio
+Past values of financial assets, for use in portfolio allocation.
+Smarket
+Daily percentage returns for S&P 500 over a 5-year period.
+USArrests
+Crime statistics per 100,000 residents in 50 states of USA.
+Wage
+Income survey data for males in central Atlantic region of USA.
+Weekly
+1,089 weekly stock market returns for 21 years.
+TABLE 1.1. A list of data sets needed to perform the labs and exercises in this
+textbook. All data sets are available in the ISLR library, with the exception of
+Boston (part of MASS) and USArrests (part of the base R distribution).

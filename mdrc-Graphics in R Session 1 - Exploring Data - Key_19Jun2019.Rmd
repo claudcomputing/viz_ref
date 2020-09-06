@@ -1,0 +1,1172 @@
+---
+title: 'Graphics in R Session 1: Exploring Data Visually - Key'
+author: "Research Technology Unit | Dannia Guzman"
+date: "April 9, 2019"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+
+## Hands-On activity
+For more context on this training and other helpful info, please review the companion guide for this session. 
+
+## Workflow Step 1: Install and/or load packages needed
+
+Always best practice to load packages needed at the top of the program and to document why the package is being used. 
+
+
+### Markdown file setup 
+Set up the directory for the Markdown file by modifying and running the chunk below. 
+
+Replace `[SASUser ID]` on the path below with your folder name. If you stored the folder in a sub-directory within your SASUser folder, please modify path accordingly. 
+
+If this is your first time running a Markdown file, you may need to install the `knitr` package first to be able to call the `opts_knit$set()` function below.
+
+
+```{r setup, echo=FALSE}
+# install.packages("knitr") # Uncomment and run this to install knitr package
+
+# Setting knitr options
+#workDir <- "X:/SASUser/[SASUser ID]/Graphics in R 2019"
+knitr::opts_knit$set(root.dir=workDir)
+```
+
+
+
+
+### Package installation - run this chunk at start of class
+These are the packages we will be using for this session. The code below will load the packages. If you get an error that the package cannot be found, you may need to install it first by uncommenting the lines above it. 
+
+While the packages install and load, we'll get started by reviewing the content on the companion guide for this session. 
+
+```{r}
+# Install a package using code
+## Commented out for staff that already have the packages installed
+#packagesToInstall <- c("haven", "tidyverse")
+#install.packages(packagesToInstall)
+
+# Load packages
+library(haven)   # For reading and writing SAS, SPSS, and STATA files
+library(readr)   # For reading text files, such as csv
+library(dplyr)   # For manipulating our data
+library(ggplot2) # For visualizing our data
+```
+
+
+
+
+
+
+
+
+
+***
+
+
+
+## Workflow Step 2: Read data into R and inspect it
+
+**The process for reading in the data is discussed more thoroughly in the R Best Practices Session 2 training. High level notes included below and more explanations can be found on the recording of the class SharePoint page.** 
+
+
+Read the raw data stored in a csv file using the function `read_csv()` provided by the `readr` package. 
+
+
+Read the SAS data stored in a sas7bdat file using the function `read_sas()` provided by the `haven` package. 
+
+
+Then append together the tibbles (an improved version of a data frame) produced by this process and store the complete data to the variable called `evals`.
+
+**Note:** Data can also be read from databases and other sources.
+
+```{r}
+# Read in files
+# Assign file path to a name
+sasData <- "data/utevals1.sas7bdat"
+
+# Read SAS data and assign to evals_sas name. 
+evalsSAS <- read_sas(sasData)
+
+# Assign csv path to name
+csvData <- "data/utevals2.csv"
+
+# Read CSV file and assign to evals_csv name
+evalsCSV <- read_csv(csvData)
+
+# Append the two tables using the bind_rows function
+evals <- bind_rows(evalsSAS, evalsCSV)
+
+# Clean up - removing objects not needed from environment
+rm(evalsCSV, evalsSAS, csvData, sasData)
+
+# Check the data set
+# glimpse(evals)
+```
+
+
+### View the data
+
+Print the first 10 records in the data
+
+```{r}
+head(evals, 10)
+```
+
+
+
+### Data dictionary for your reference
+
+Description of variable/column as explained by [Open Intro data documentation](https://www.openintro.org/stat/data/?data=evals)
+
+ + `prof_id`: Professor ID
+
+ + `score`: Average professor evaluation score: (1) very unsatisfactory - (5) excellent.
+
+ + `rank`: Rank of professor: teaching, tenure track, tenured.
+
+ + `ethnicity`: Ethnicity of professor: not minority, minority.
+
+ + `gender`: Gender of professor: female, male.
+
+ + `language`: Language of school where professor received education: English or non-English.
+
+ + `age`: Age of professor.
+
+ + `cls_perc_eval`: Percent of students in class who completed evaluation.
+
+ + `cls_did_eval`: Number of students in class who completed evaluation.
+
+ + `cls_students`: Total number of students in class.
+
+ + `cls_level`: Class level: lower, upper.
+
+ + `cls_profs`: Number of professors teaching sections in course in sample: single, multiple.
+
+ + `cls_credits`: Number of credits of class: one credit (lab, PE, etc.), multi credit.
+
+ + `bty_f1lower`: Beauty rating of professor from lower level female: (1) lowest - (10) highest.
+
+ + `bty_f1upper`: Beauty rating of professor from upper level female: (1) lowest - (10) highest.
+
+ + `bty_f2upper:` Beauty rating of professor from second level female: (1) lowest - (10) highest.
+
+ + `bty_m1lower`: Beauty rating of professor from lower level male: (1) lowest - (10) highest.
+
+ + `bty_m1upper`: Beauty rating of professor from upper level male: (1) lowest - (10) highest.
+
+ + `bty_m2upper`: Beauty rating of professor from second upper level male: (1) lowest - (10) highest.
+
+ + `bty_avg`: Average beauty rating of professor.
+
+ + `pic_outfit`: Outfit of professor in picture: not formal, formal.
+
+ + `pic_color`: Color of professor's picture: color, black & white.
+ 
+ + Ignore the class dummy variables.
+
+
+
+
+
+
+
+
+
+
+#### ACTIVITY 1: Let's get to know the data together
+When inspecting data, use functions such as `utils::str()`, `base::summary()`, `dplyr::glimpse()`, `Hmisc::describe()`,  and others you may prefer to get a general sense of the data.
+
+Review the output from `Hmisc::describe(evals)` and consider the following questions about the data:
+
+1. How many records? What do they represent?
+
+2. How many professors?
+
+3. How complete is the data for each variable? Any concerns with missing data?
+
+4. What types of variables are in the data?
+  + Which variables are continuous?
+  + Which variables are categorical?
+  
+5. What is the structure of the data? 
+  + Wide? Any variable spread across multiple columns?
+  + Long? One column per variable?
+  
+  
+```{r}
+Hmisc::describe(evals)
+```
+
+**Note**: Using the nomenclature `packageName::function()` allows you to use a function from a package without needing to load it. In this example we only want to use the `describe()` function from the `Hmisc` package. 
+
+
+This approach is also helpful for being explicit on what function from which package is desired when multiple packages have been loaded and there are conflicts with the same function name across packages. Note that the `utils` and `base` packages are loaded by default and this approach is only needed if some other package was loaded with a conflicting function name.
+ 
+
+
+
+***
+
+
+
+
+## Workflow Step 3: Process data as needed
+
+Some light processing is needed before we get to visualizing the data. The two main tasks helpful for our needs are to 1) create a data set at the course level that drops a duplicate record in the data and 2) create a data set at the professor level that keeps demographic variables found in the raw data along with new variables created to aggregate course level information for each professor.
+
+
+**These steps are glossed over so that we can focus on the data visualization. Included here as a reminder that depending on the data read into R, some processing may be necessary before you are able to create the visualizations desired.**
+
+
+The pipe operator (`%>%`) is used along with dplyr functions below. Understanding how it works is beyond the scope of this training. Please refer to the [March 2019 MRUG Markdown file and recoding on our R learning center SharePoint site](https://mdrc365.sharepoint.com/sites/LearningCenter/R/R/R_RUG.aspx) for a hands-on introduction to dplyr functions and piping for data manipulation. For more detailed background on dplyr also reference the MRUG presentation from April 2019 on the site linked to above. 
+
+
+
+
+
+### Task 1: Create data set at course level without duplicates
+
+Identify duplicate records.
+
+```{r}
+evals %>% group_by_all() %>% 
+  count() %>% 
+  filter(n > 1)
+
+```
+
+
+Take the data sets evals and then keep only unique records and call this resulting data set `evals2`. Confirm the number of records is as expected. 
+
+```{r}
+evals2 <- evals %>% distinct() 
+
+#Confirming no duplicates
+evals2 %>% group_by_all() %>%
+  count() %>% 
+  filter(n > 1)
+```
+
+
+
+
+### Task 2: Create a data set at the professor level
+
+
+### Unit of analysis and new measures
+From earlier inspection of the data we know there are now 462 records (we dropped a duplicate record), but these records only represent 94 unique professors (`prof_id` only has 94 distinct values). To make it easier to explore demographic and other person-level characteristics using ggplot, we will create a new data set at the professor level.
+
+
+#### Data set at the course level with new measures at the professor level
+
+New measures of interest created below:
+
+ + Total number of courses in this data taught by professor (`k_courses`)
+
+ + Average class size taught by professor across all classes (`avg_cls_students`)
+
+ + Average evaluation score for the professor across all classes (`avg_prof_eval`)
+
+ + Average rating score for the courses taught by professor (`avg_prof_eval`)
+
+
+```{r}
+evals3 <- evals2 %>% 
+  # Grouping by professor to compute aggregate measures
+  group_by(prof_id) %>% 
+  
+  # Mutate to create new variables in the data set
+         # Count of courses taught by professor
+  mutate(k_courses = n(), 
+         # Average evaluation across all courses
+         avg_prof_eval = mean(prof_eval),
+         # Average class size
+         avg_cls_students = mean(cls_students),
+         # Average course evaluation
+         avg_course_eval = mean(course_eval) ) %>% 
+  
+  # Prevents functions from using grouping. E.g. table() behaves differently if grouped. 
+  ungroup()
+
+```
+
+
+
+#### Creating a data set at the professor level
+
+The data set `evals3` contains class level and professor level information. This means professor level information is repeated for any row matching to a given professor. We are 1) taking the data set `evals3` and then 2) choosing professor level variables to keep  into our new data set and then 3) removing duplicates among these chosen variables and then 4) calling the resulting tibble `prof`.
+
+```{r}
+prof <- evals3 %>% 
+  select("prof_id", "rank", "ethnicity", "gender", "language", "age", 
+         "k_courses", 
+         starts_with("avg_")) %>% 
+  distinct()
+```
+
+#### Checking the new data set
+
+Quick overview of the content of the new data set. 
+
+```{r}
+glimpse(prof)
+```
+
+
+
+
+### Clean up
+
+To reduce the chances of any confusion moving forward, we are eliminating data sets previously created in our session that we will no longer need.
+
+```{r}
+rm(evals, evals2)
+```
+
+
+
+
+
+***
+
+
+
+## Workflow Step 3: Make graphics and customize as needed
+
+
+
+### Introduction to the grammar of graphics
+
+"The ggplot library is an implementation of the grammar of graphics, an idea developed by Wilkinson (2005). The grammar is a set of rules for producing graphics from data, taking pieces of data and mapping them to geometric objects (like points and lines) that have aesthetic attributes (like position, color, and size), together with further rules for transforming the data if needed."^[Healy, Kieran. Data Visualization: A Practical Introduction (Page 74). Princeton University Press.]
+
+ 
+
+
+
+### Plots are made layer by layer
+The core idea is that all graphics are made of components that are layered together and customized to create the final visualization desired. There are a total of 7 types of layers, however only the first 3 are crucial to making a graph, the other 4 are used to customize the visualization to meet our needs.
+
+
+```{r, echo = FALSE}
+knitr::include_graphics(file.path(workDir,"img/session1/ggplot-layers-7v2-700pxwide.png"))
+```
+
+
+
+
+
+#### **Code template** 
+
+Only the first three layers are require to produce a plot with ggplot using the following syntax. 
+
+Note the use of the `+` to add a new layer. 
+
+```{r, echo = FALSE}
+knitr::include_graphics(file.path(workDir,"img/session1/r-concept-ggplot-700pxwide.png"))
+
+```
+
+
+
+
+
+#### **Code template** 
+
+Many different layers can be added together. Multiple layers of the same type can be used as well (e.g. using 3 geom layers).
+
+Using `mapping = aes()` is optional if the `aes( <arguments> )` parameter is the second parameter given to the `ggplot()` function. Moving forward we will use this shortcut to reduce typing. 
+
+
+
+```{r, eval = FALSE}
+# Longer way
+ggplot(<my_data>,  mapping = aes( x = <my_var1>, y = <my_var2>)) 
+  
+# Shorter way
+ggplot(<my_data>,            aes( x = <my_var1>, y = <my_var2>)) 
+
+```
+
+Many layers can be combined together using the `+` before the next layer. Example template of using one of each of the seven layers:
+
+```{r, eval= FALSE}
+
+ggplot(<my_data>,  mapping = aes( x = <my_var1>, y = <my_var2>)) +
+  
+  geom_<*>( <more parameters> ) +
+  
+  stat_<*>( <more parameters> ) +
+  
+  facet_<*>( <more parameters> ) +
+  
+  coord_<*>( <more parameters> ) +
+  
+  scale_<*>( <more parameters> ) +
+ 
+  theme_<*>( <more parameters> ) 
+
+```
+
+
+
+
+***
+
+
+
+
+#### ACTIVITY 2: Identify the layers
+> Identify the layers in this graph
+
+What data and instructions were necessary to create the visual graph you see?
+
+```{r }
+knitr::include_graphics(file.path(workDir,"img/session1/graphics-components-700pxwide.png"))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Activity - layers included in graphic:
+
+```{r activity1a}
+knitr::include_graphics(file.path(workDir,"img/session1/graphics-componentsv2-700pxwide.png"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The following chunk shows the code used to produce this graph. Since we don't have access to this data we cannot run the code and thinker with it. Don't try to dissect the code too much at this point. By the end of this training you will understand how it works.
+
+
+**The important takeaways:**
+
+1. Code translates to a visualization.
+
+2. GGPLOT provides a structured approach for describing all aspects of a visualization
+
+3. Layers can be combined to create complex plots once you learn the building blocks of ggplot. 
+
+
+
+```{r activity2b, eval = FALSE}
+                      # Axes variables
+ggplot( midwest, aes( x=area, y=poptotal)) +
+  
+                 # Color    # Size
+geom_point( aes( col=state, size=popdensity)) +   # Scatter plot points
+ 
+
+geom_smooth(method="loess",se=F) +                # Regression line 
+ 
+
+xlim(c(0,0.1)) + ylim(c(0,500000)) +              # Axis scale 
+ 
+
+geom_encircle(aes(x=area,y=poptotal),             # Encircle section of plot 
+              data=midwest_select, 
+              color="red",
+              size=2,
+              expand=0.08) +
+  
+                                                  # Title and axes description 
+labs( subtitle="Area Vs Population",
+      y="Population",
+      x="Area",
+      title="Scatterplot + Encircle", 
+      caption="Source: midwest")
+```
+
+
+
+
+
+
+
+***
+
+
+
+
+
+
+
+
+
+
+### Quick planning and foresight before writing code
+
+When it comes to data visualization, it is helpful to draw on paper or have a mental sketch of the plot we want to create before writing code. This makes debugging code easier. Before you start making plots, **stop and think** about the data and what you hope to understand or show through visualization. 
+
+
+
+
+
+
+### Making plots for `one continuous variable` 
+Learn how ggplot works by building and deconstructing simple plots for one continuous variable.
+
+
+#### Demo - Making plots to explore the continuous variable age
+
+
+**Stop and think**
+
+1. What are are our questions? And why do we care?
+
+  + What is the shape of the distribution of the variable age?
+    
+  + Are there any outliers?
+  
+  + Why might we care about this distribution?
+  
+> Certain  analysis require certain distributions
+> Need best fitting distribution to calculate percentiles, probabilities and make inferences about population
+> What proportion of values are associated with important regions
+
+    
+
+2. What do we need to consider in order to explore this question visually?
+
+  1. Which data set and variables are we using? 
+  
+      + Data set `prof` and variable `age`
+     
+  2. What type of variables are these and are they complete?
+  
+      + Continuous
+    
+      + No missing data
+    
+    
+    
+3. What kinds of visuals could we make with this kind of data? Check out the website [from Data to Viz](https://www.data-to-viz.com/) as a helpful tool when brainstorming. 
+  
+    + Density plot (`geom_density()`)
+    
+    + Histogram (`geom_histogram()`)
+    
+    + Box plot (`geom_boxplot()`)
+    
+    + Violin plot (`geom_violin()`)
+    
+    
+    
+4. Is the data in the structure needed to make desired visual?
+  
+    + One row per person, only one column contains age data  which means we have a tidy long data set as expected by ggplot.
+    
+    
+    
+
+**Making a density plot**
+
+```{r  }
+ggplot(prof, aes( x = age))  +
+  
+  geom_density()
+
+```
+
+
+
+
+
+
+
+**Default properties of the plot can be changed**
+
+```{r}
+ggplot(prof, mapping = aes( x = age)) +
+  
+  geom_density(color = "blue", fill = "orange", size = 2)
+
+```
+
+
+
+
+
+
+
+**Now we want to make a histogram and modify the default colors**
+
+```{r}
+ggplot(prof, aes( x = age)) +       # Base remains the same
+ 
+   geom_histogram(color = "blue", 
+                  fill = "orange", 
+                  size = 2)         # Geom layer changes
+
+```
+
+
+
+
+
+
+
+
+
+**Plots can be stored as a base layer and modified later**
+
+Since the underlying mappings are the same for both plots, let's make it more efficient by storing the base foundation of the plot and adjusting when needed.
+
+* Changes made to the code:
+  
+  + Store the `ggplot()` layer as an object named `b_age` so that we can call it later to modify it
+  
+  + Modify the base layers to recreate the desired plots by adding different geom layers
+
+
+```{r}
+b_age <- ggplot(prof, aes( x = age) ) 
+
+```
+
+
+
+
+
+If you are curious, this is a type of object other ggplot functions understand
+```{r}
+class(b_age)
+```
+
+
+
+
+
+
+This ggplot object is made of code and attributes it can use to accomplish other tasks when we call this object using functions that know what to do with it. Uncomment the code if interested in seeing what information gets stored from this code.
+```{r}
+# str(b_age)
+```
+
+
+
+
+
+
+#### Demo - Using a base layer to create different types of plots
+
+
+**Recreating a density plot**
+
+Recreating the previous density plot by using the base `ggplot()` layer and adding a `geom_density()` layer. 
+
+```{r}
+b_age +
+  
+  geom_density(color = "blue", fill = "orange", size = 2)
+```
+
+
+
+
+
+
+
+
+**Enhancing density plot with a rug plot**
+
+Adding a new layer (`geom_rug()`) to enhance our plot further. "A rug plot is a compact visualization designed to supplement a 2d display with the two 1d marginal distributions. Rug plots display individual cases so are best used with smaller data sets."^[https://ggplot2.tidyverse.org/reference/geom_rug.html]
+
+
+
+```{r}
+b_age +
+  geom_density(color = "blue", fill = "orange", size = 2) +
+  
+  geom_rug( size = .5)
+ 
+```
+
+
+
+
+
+
+
+
+**Creating a histogram plot from base layer and modifying properties**
+
+Try changing the `bins =` parameter to observe the changes to the histogram.
+
+```{r}
+b_age +
+  geom_histogram(color = "blue",
+                 fill = "orange",
+                
+                 bins = 5)
+```
+
+
+
+
+***
+
+
+
+
+
+
+#### ACTIVITY 3: Visualize the distribution with a box plot 
+
+Let's change it up and explore the distribution of the average number of students across all courses taught by each instructor (`avg_cls_students`)
+
+* **To get started:**
+
+  1. Use `geom_boxplot()` layer
+  
+    + By default, it expects an  `x =` and `y =` aesthetic mapping. Use a dummy string for the x mapping such as a one `x = "1"` or empty string `x = ""` to make a box plot for one variable
+    
+    + What happens to the axes if you used a number as a dummy (e.g. `x = 1`) instead of a string (e.g. `x = "1"`) for the x aesthetic mapping? For the next steps, keep the string version. 
+    
+    
+  2. Change how much space the box plot occupies by modifying the `width = ` property. 
+  
+    + Compare the box plot using `width = .2` versus `width = .8` or some other value of choice.
+    
+    
+  3. Assign a name to this plot as we will re-use it in the next activity.
+  
+  
+  4. Interpret:  **What insights do we gain from this boxplot?**
+  
+  
+  
+  
+  
+  
+  
+  
+
+```{r activity3a}
+fig_bp_size <- ggplot(prof, aes(x = "", y = avg_cls_students)) + 
+  
+  geom_boxplot(width = .2)
+
+fig_bp_size
+```
+
+
+
+
+
+
+
+
+
+
+
+
+#### ACTIVITY 4: Enhance the box plot with additional point layers 
+
+One of the disadvantage of the box plot is losing granular view of the points underlying the data. 
+
+One way to get around this is to overlay points for age of each records. In this activity you will explore plotting one continuous variable using `geom_point()` and `geom_jitter()`.
+
+
+**Plot 1: Overlay scatter plot using `geom_point()` layer**
+
+* **To get started on plot 1:**
+  1. Use the base layer stored in the previous activity (or explore a different continuous variable of choice).
+  
+  2. Add a`geom_point()` layer to this base.
+  
+  3. Change the color of the dots using the `color =` property (e.g. `color = "purple"`)
+  
+  4. Change the size of the dots using the `size = ` property (e.g. `size = 2` or `size = 5`)
+
+
+
+
+
+
+
+
+
+
+
+
+```{r activity4a}
+fig_bp_size +
+  
+  geom_point(color = "purple", 
+             size = 2)
+
+```
+
+
+
+
+
+
+**Plot 2:  Overlay scatter plot using `geom_jitter()` layer**
+
+* **To get started on plot 2:**
+
+  1. Copy the code from plot 1
+  
+  2. Replace `geom_point()` layer with a `geom_jitter()` layer and keep the `size = ` and `color = ` the same 
+  
+  3. What is the difference between these two geoms?
+  
+  4. Try adding the properties `height = 0` and `width = .2 `  to this geom layer.
+  
+    + Then try modifying the properties to `height = .2` and `width = 0 `
+    
+    + Then try modifying the properties to `height = .2` and `width = .5 ` 
+    
+    + What is the purpose of the `width =` and `height = ` properties?
+  
+  
+  
+  
+  
+  
+  
+  
+  
+```{r activity4b}
+ggplot(prof, aes(x = '', y = avg_cls_students)) +
+  
+    geom_boxplot() +
+  
+    geom_jitter(color = "purple", 
+                size = 2,
+                width = .2, 
+                height = .5) 
+ 
+    
+  
+```
+
+
+
+
+
+
+
+
+**Plot 3: Create a density plot and compare to boxplot**
+
+* **To get started on plot 3:**
+
+  1. Reference code from earlier density plot for reminder of syntax
+  
+  2. Add a rug plot to the density plot
+  
+  3. **Does the density plot confirm insights gained from boxplot?**
+  
+  
+  
+  
+  
+  
+
+```{r activity4c}
+
+ggplot(prof, aes( x = avg_cls_students)) + 
+  
+  geom_density() +
+  
+  geom_rug()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### ACTIVITY 5:  Explore the impact of the code order on the layers visualized
+
+Recreate the box plot with the purple points and switch the order of the geom layers.
+
+* **To get started:**
+  1. Copy the code for the box plot from above. This time do not use the base layer stored previously and use the code with the `geom_boxplot()` and `geom_jitter()` layers specified.
+
+  3. Switch the order of the geoms. What changed?
+  
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+  
+  
+```{r activity5}
+ggplot(prof, aes(x = '', y = avg_cls_students)) +
+  
+    geom_jitter(color = "purple", 
+                size = 2,
+                width = .1, 
+                height = .1) +
+ 
+    geom_boxplot() 
+  
+```
+
+
+
+
+
+
+
+
+
+
+##### ACTIVITY 6: Use optional layers to modify the look of the final plot
+
+* **To get started:**
+
+  1. Copy the code for any plot above.
+  
+  2. Change the plot title and axes label by adding a `labs()` layer
+  
+  3. Add the parameters `title = "my title"`, `ylab = "my y axis label"` to the `lab()` layer
+  
+  4. Change the appearance of the plot by adding a theme layer such as `theme_bw()` or `theme_dark()` or `theme_void()`
+  
+  5. What happens if we use multiple themes at the same time? Which theme is persistent?
+
+
+
+
+
+
+
+
+```{r activity6}
+ggplot(prof, aes( x = age)) +
+  geom_density(color = "blue", fill = "orange", size = 2) +
+  labs(x = "my x axis") +
+  theme_bw()
+
+  #theme_dark() +
+  #theme_void()
+  
+```
+
+
+
+
+
+
+
+
+***
+
+
+
+
+
+## Key takeaways
+
+ 1. **Stop and think before coding:** Before making a visualization, think about the goal and other considerations to make the process smoother.
+
+ 2. **Avoid repeating code when possible (for project work):** Create a base plot and assign a name to it that can be called at a later point.
+
+  + Geometric layers inherit the aesthetic mappings specified in the ggplot() layer.
+  
+ 3. **Complex graphics are built layer by layer:** You can stack as many different layers as you like and ggplot will draw them.
+
+  + Layers are drawn in the order specified. 
+  
+    + You may need to rearrange code to achieve a desired effect (e.g. wanting a layer under or over another layer).
+    
+  + Optional layers can be added to further enhance graphics.
+    
+  + **Geom layers have their own quirks:** Each layer has default properties that can be adjusted.
+
+    + These properties may be the same across different layers (e.g. color, size).
+  
+    + Some properties are specific to a type of layer (e.g. bin for histograms).
+  
+ 4. **Reiteration is part of the process!** Don't expect to get it the way you want it on the first try. Sometimes it takes a few tries to create the plot the way you envisioned it. 
+
+
+
+**No need to reinvent the wheel!** Many resources are available to help you get started including our new [Data Visualization Yammer group](https://www.yammer.com/mdrc.org/#/threads/inGroup?type=in_group&feedId=17467951&view=all and other resources on our SAS, R, and Report Production sites on the Learning Center. 
+ 
+ 
+ 
+ 
+  
+***
+
+
+## Challenge 1: Use what you've learn to create a horizontal bar chart
+
+At this point you have learned the basic foundation to make many different types of plots. As long as you have the data in the structure needed to make the plot, you can use what you know to map the data to the corresponding aesthetic mappings and geom layers. 
+
+For this challenge, your task is to recreate the horizontal bar chart below displaying the total count of instructors by tenure track. The data you need along with tips (if you would like to see them) are found below to help you get going. 
+
+Task: Recreate this horizontal bar chart.
+
+```{r}
+knitr::include_graphics(file.path(workDir,"img/session1/challenge-session1-700pxwide.png"))
+```
+
+
+
+### Aggregate data of count and proportion by tenure track
+
+Using dplyr to  compute the counts and proportion we are interested in plotting and naming the resulting data set `tb_rank`.
+
+If you are curious to learn how this dplyr code works, please refer to MRUG presentations on dplyr mentioned previously in this session. 
+
+```{r}
+tb_rank <- prof %>% 
+  group_by(rank) %>% 
+  summarise(count = n()) %>% 
+  mutate(prop = round((count/sum(count)) * 100, 1))
+
+tb_rank
+  
+```
+
+* **Tips to get started:**
+
+  1. **Stop and think** Remember the guiding questions before writing code.
+  
+  2. Use the `geom_col()` layer to make a vertical bar chart
+  
+     + This layer expects an `x =` and `y =` aesthetic mapping
+     
+     + Try adding the `width` property to this layer and experiment with different values between 0 and 1
+     
+     + Use the `fill = '#??????'` property to make the color of the bars match the Patone 7463 color from the MDRC Visual Style Guide. Replace the `?` with the hex number found on the guide for that color. 
+     
+     
+  3. Add the coordinate layer `coord_flip()` to turn the vertical bar chart into a horizontal bar chart. Note that this layer does not require any additional mappings beyond the ones inherited from the `ggplot()` function.
+  
+     
+  4. Overlay the value label dynamically by adding the `geom_text()` layer
+     
+     + This layer expect the `label =` and `y = ` aesthetic mappings. (Hint: specify these mappings within the geom_text() function and not the ggplot() function)
+     
+     + Need more hints? `label =` should map to the variable in your data with the values you want to be plotted on the graph and the `y = ` should map to the variable in your data specifying the y coordinate value where this labels should be placed.
+     
+     + Need more hints? For this challenge, the same variable will be mapped to both the `label` and `y` aesthetic mapping
+     
+     + Add a `color = '#??????>'` property to make the labels the Pantone 7458 color from MDRC's visual style guide
+     
+     + Now you need to get the labels to appear on the lower right hand corner of each bar. You can do this by adding the `hjust =` (for horizontal adjustment) and the `vjust =`(for vertical adjustment) parameters the `geom_text()` layer.
+     
+       + Try adding them one at a time an thinker with setting them to values ranging from -1 to 1.
+       
+       + Once you get a sense for how each of these properties affect the placement of the labels, add both of them at the same time and adjust accordingly until the green value labels are close to the being inside the bar on the lower right corner.
+       
+      + Add the `size =` property and try different positive values from 1 to 10. What happens? Choose a size of your liking or close to the screenshot.
+       
+       
+  5. Change the plot title and axes labels by adding a `lab()` layer
+     + Add the properties `title = "my title"`, `ylab = "my y axis label"` to the `lab()` layer and set them to match the challenge picture
+     
+ 
+  
+  6. Change the non-data aesthetics of the plot by adding a theme layer such as `theme_bw()` or `theme_dark()` or `theme_void()` or `theme_classic()`. Which theme is closest to the screenshot?
+  
+
+
+
+#### GOOD LUCK! Let's keep the learning going on Yammer. 
+
+Feel free to work together if you find it helpful. 
+
+
+Post on the Data Visualization Yammer Group in between classes any questions about this challenge or anything related to the content covered thus far.
+
+
+**Please come prepare to share your approach/solution for session 2.** 
+
+
+
+
+
+
+
+
+
+
+
+
+```{r challenge1}
+ggplot( tb_rank, aes(x= rank, y = prop )) +
+  
+  # Vertical bar chart and adjustment of bar width
+  
+  geom_col(width = .5,
+           fill = "#00558c") + 
+  
+  # Turning into a horizontal bar chart
+  coord_flip() +
+  
+  # Adding labels within the chart dynamically
+  geom_text(aes(label = prop, y = prop), 
+            vjust = 1.5, 
+            hjust = 1.5,
+            color = "#cae3eb",
+            size = 5) +
+  
+  # Adding chart title and axes label
+  labs( title = "Most professors teaching are tenured ",
+            x = "Tenure track",
+           y = "Proportion of professors" ) +
+  
+  # Change default theme 
+  theme_classic() 
+  
+  
+```
+
+
+
+

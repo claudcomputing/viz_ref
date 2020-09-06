@@ -1,0 +1,1354 @@
+---
+title: 'Graphics in R Session 2: Customizing Graphics'
+author: "Research Technology Unit | Dannia Guzman"
+date: "April 18, 2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+## Hands-On activity
+For more context on this training and other helpful info, please review the getting started PDF for this session. 
+
+## Workflow Step 1: Install and/or load packages needed
+
+Always best practice to load packages needed at the top of the program and to document why the package is being used. Packages are functions created by other people which we need to install once and load for every session. Check out the R Best Practices session 2 training for more details about packages. 
+
+
+### Markdown file setup 
+Set up the directory for the Markdown file by modifying and running the chunk below. 
+
+Replace `[SASUser ID]` on the path below with your folder name. If you stored the folder in a subdirectory within your SASUser folder, please modify. 
+
+If this is your first time running a Markdown file, you may need to install the `knitr` package first.
+
+
+```{r setup, echo=FALSE}
+# install.packages("knitr") # Uncomment and run this line 
+                            # if package installation needed
+
+# Setting knitr options
+#workDir <- "X:/SASUser/[SASUser ID]/Graphics in R 2019"
+knitr::opts_knit$set(root.dir=workDir)
+```
+
+
+
+
+
+
+
+
+
+### Package installation - run this chunk at start of class
+These are the packages we will be using for this session. The code below will load the packages. If you get an error that the package cannot be found, you may need to install it first by uncommenting the lines above it. 
+
+While the packages install and load, we'll get started. 
+
+```{r}
+# Install a package using code
+## Commented out for staff that already have the packages installed
+#packagesToInstall <- c("haven", "tidyverse")
+#install.packages(packagesToInstall)
+#install.packages("Hmisc")
+
+# Load packages
+library(haven)     # For reading and writing SAS, SPSS, and STATA files
+library(readr)     # For reading text files, such as csv
+library(dplyr)     # For manipulating our data
+library(ggplot2)   # For visualizing our data
+```
+
+
+
+
+
+
+
+
+
+***
+
+
+
+## Workflow Step 2: Read data into R and inspect it
+
+**Recreating data sets we worked with during session 1** 
+
+
+```{r}
+# Read in files
+# Assign file path to a name
+sasData <- "data/utevals1.sas7bdat"
+
+# Read SAS data and assign to evals_sas name. 
+evalsSAS <- read_sas(sasData)
+
+# Assign csv path to name
+csvData <- "data/utevals2.csv"
+
+# Read CSV file and assign to evals_csv name
+evalsCSV <- read_csv(csvData)
+
+# Append the two tables using the bind_rows function
+evals <- bind_rows(evalsSAS, evalsCSV)
+
+# Clean up - removing objects not needed from environment
+rm(evalsCSV, evalsSAS, csvData, sasData)
+
+# Check the data set
+# glimpse(evals)
+```
+
+
+
+
+### Data dictionary for your reference
+
+Description of variable/column as explained by [Open Intro data documentation](https://www.openintro.org/stat/data/?data=evals)
+
+ + `prof_id`: Professor ID
+
+ + `score`: Average professor evaluation score: (1) very unsatisfactory - (5) excellent.
+
+ + `rank`: Rank of professor: teaching, tenure track, tenured.
+
+ + `ethnicity`: Ethnicity of professor: not minority, minority.
+
+ + `gender`: Gender of professor: female, male.
+
+ + `language`: Language of school where professor received education: English or non-English.
+
+ + `age`: Age of professor.
+
+ + `cls_perc_eval`: Percent of students in class who completed evaluation.
+
+ + `cls_did_eval`: Number of students in class who completed evaluation.
+
+ + `cls_students`: Total number of students in class.
+
+ + `cls_level`: Class level: lower, upper.
+
+ + `cls_profs`: Number of professors teaching sections in course in sample: single, multiple.
+
+ + `cls_credits`: Number of credits of class: one credit (lab, PE, etc.), multi credit.
+
+ + `bty_f1lower`: Beauty rating of professor from lower level female: (1) lowest - (10) highest.
+
+ + `bty_f1upper`: Beauty rating of professor from upper level female: (1) lowest - (10) highest.
+
+ + `bty_f2upper:` Beauty rating of professor from second level female: (1) lowest - (10) highest.
+
+ + `bty_m1lower`: Beauty rating of professor from lower level male: (1) lowest - (10) highest.
+
+ + `bty_m1upper`: Beauty rating of professor from upper level male: (1) lowest - (10) highest.
+
+ + `bty_m2upper`: Beauty rating of professor from second upper level male: (1) lowest - (10) highest.
+
+ + `bty_avg`: Average beauty rating of professor.
+
+ + `pic_outfit`: Outfit of professor in picture: not formal, formal.
+
+ + `pic_color`: Color of professor's picture: color, black & white.
+ 
+ + Ignore the class dummy variables.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Workflow Step 3: Process data as needed
+
+Data preparation from session 1 to recreate data sets used. 
+
+```{r}
+
+evals3 <- evals %>%  
+  # Removing duplicates
+  distinct() %>% 
+  # Grouping by professor to compute aggregate measures
+  group_by(prof_id) %>% 
+  
+  # Mutate to create new variables in the data set
+         # Count of courses taught by professor
+  mutate(k_courses = n(), 
+         # Average evaluation across all courses
+         avg_prof_eval = mean(prof_eval),
+         # Average class size
+         avg_cls_students = mean(cls_students),
+         # Average course evaluation
+         avg_course_eval = mean(course_eval),
+         avg_bty = mean(bty_avg)) %>% 
+  
+  # Prevents functions from using grouping. E.g. table() behaves differently if grouped. 
+  ungroup()
+
+
+prof <- evals3 %>% 
+  select("prof_id", "rank", "ethnicity", "gender", "language", "age", 
+         "k_courses", 
+         starts_with("avg_")) %>% 
+  distinct()
+
+ # Clean up
+ rm(evals)
+
+```
+
+
+***
+
+
+
+## Workflow Step 4: Make graphics and customize as needed
+
+
+### Session 1 Challenge review 
+
+#### Aggregate data of count and proportion by tenure track
+
+Using dplyr to  compute the counts and proportion we are interested in plotting and naming the resulting data set `tb_rank`.
+
+```{r}
+tb_rank <- prof %>% 
+  group_by(rank) %>% 
+  summarise(count = n()) %>% 
+  mutate(prop = round((count/sum(count)) * 100, 1))
+
+tb_rank
+  
+```
+
+##### Code to create graph
+
+* **To get started:**
+
+  1. **Stop and think** Remember the guiding questions before writing code.
+  
+  2. Use the `geom_col()` layer to make a vertical bar chart
+  
+     + This layer expects an `x =` and `y =` aesthetic mapping
+     
+     + Try adding the `width` property to this layer and experiment with different values between 0 and 1
+     
+     + Use the `fill = '#??????'` property to make the color of the bars match the Patone 7463 color from the MDRC Visual Style Guide. Replace the `?` with the hex number found on the guide for that color. 
+     
+     
+  3. Add the coordinate layer `coord_flip()` to turn the vertical bar chart into a horizontal bar chart. Note that this layer does not require any additional mappings beyond the ones inherited from the `ggplot()` function.
+  
+     
+  4. Overlay the value label dynamically by adding the `geom_text()` layer
+     
+     + This layer expect the `label =` and `y = ` aesthetic mappings. (Hint: specify these mappings within the geom_text() function and not the ggplot() function)
+     
+     + Need more hints? `label =` should map to the variable in your data with the values you want to be plotted on the graph and the `y = ` should map to the variable in your data specifying the y coordinate value where this labels should be placed.
+     
+     + Need more hints? For this challenge, the same variable will be mapped to both the `label` and `y` aesthetic mapping
+     
+     + Add a `color = '#??????>'` property to make the labels the Pantone 7458 color from MDRC's visual style guide
+     
+     + Now you need to get the labels to appear on the lower right hand corner of each bar. You can do this by adding the `hjust =` (for horizontal adjustment) and the `vjust =` properties to the `geom_text()`.
+       + Try adding them one at a time an thinker with setting them to values ranging from -1 to 1.
+       
+       + Once you get a sense for how each of these properties affect the placement of the labels, add both of them at the same time and adjust accordingly until the green value labels are close to the being inside the bar on the lower right corner.
+       
+      + Add the `size =` property and try different positive values from 1 to 10. What happens? Choose a size of your liking or close to the screenshot.
+       
+       
+  5. Change the plot title and axis label by adding a `lab()` layer
+     + Add the properties `title = "my title"`, `ylab = "my y axis label"` to the `lab()` layer and set them to match the challenge picture
+     
+ 
+  
+  6. Change the non-data aesthetics of the plot by adding a theme layer such as `theme_bw()` or `theme_dark()` or `theme_void()` or `theme_classic()`. Which theme is closest to the screenshot?
+  
+  
+  
+```{r challenge1}
+ggplot( tb_rank, aes(x= rank, y = prop )) +
+  
+  # Vertical bar chart and adjustment of bar width
+  
+  geom_col(width = .5,
+           fill = "#00558c") + 
+  
+  # Turning into a horizontal bar chart
+  coord_flip() +
+  
+  # Adding labels within the chart dynamically
+  geom_text(aes(label = prop, y = prop), 
+            vjust = 1.5, 
+            hjust = 1.5,
+            color = "#cae3eb",
+            size = 5) +
+  
+  # Adding chart title and axes label
+  labs( title = "Most professors teaching are tenured ",
+            x = "Tenure track",
+           y = "Total frequency" ) +
+  
+  # Change default theme 
+  theme_classic() 
+  
+  
+```
+
+
+
+#### ACTIVITY 1: Setting versus mapping aesthetics
+
+What changes occur when the color properties used for the challenge (`fill = "#00558c"` and `color = "#cae3eb`) are mapped by specifying them within the aesthetics mapping parameter `aes()`? 
+
+* **To get started:**
+
+  1. Copy the code above (or your own code).
+  
+  2. Test with adding the `fill = "#00558c"` and `color = "#cae3eb` one at a time to be within the `aes()` parameter. Take note of the changes you notice and consider: 1)Is there a difference between mapping within the `geom_` layers versus mapping within the `ggplot()` layer? 2) What may be happening behind the scenes?
+
+  
+
+
+
+
+
+
+
+
+
+
+### Visualizing continuous and categorical data on the same plot
+
+Thus far we have been setting the color aesthetics by specifying a string for the `color = ` and `fill =` parameters. Within the `aes()` parameter we have specified variables that map to the axes of our plots using the `x =` and `y =` parameters. 
+
+The aesthetic mappings for ggplot are much more flexible and be used strategically to visualize different dimensions of the data by mapping to aspects of your plot such as the color, type of shape, and size of the shape.
+
+
+
+#### ACTIVITY 2:  Mapping aesthetics to explore subgroups
+
+For this activity you will have the opportunity to explore the relationship among multiple variables by mapping them to different aesthetics. 
+
+Aesthetics you might consider mapping data to:
+1. `color`
+2. `fill`
+3. `shape`
+4. `size`
+5. `linetype`
+
+
+* **To get started:**
+
+  1. Create a scatter plot of two continuous variables by using the `geom_point()` or `geom_jitter()` layer and mapping two variables of interest to the `x` and `y` parameters. 
+  
+  2. Try mapping data to at least two aesthetics listed above to explore subgroups. Be prepared to share your plot. Don't worry too much about making the most meaningful plots, the goal is to understand how we can explore subgroups within our data. 
+
+
+
+
+
+
+
+
+
+
+
+
+### Making "small multiples" to explore subgroups
+
+Small multiples refers to  panels of plots which help to identify trends and reduce over plotting by creating separate subplots based on a discrete variable.
+
+The MDRC Visual Style Guide suggests creating a *panel of smaller charts (often referred to as "small
+multiples") may be the most effective in showing time series trend for different groups and showing where each group stands in comparison to others. The recommendation is to use a panel of small multiples when there are more than four categories of data*.
+
+
+Small multiples are easy to incorporate with ggplot's facet functions:
+
+..* `facet_wrap()` "wraps a 1d sequence of panels into 2d. This is generally a better use of screen space than facet_grid because most displays are roughly rectangular." 
+
+..* `facet_grid()` "forms a matrix of panels defined by row and column faceting variables. It is most useful when you have two discrete variables, and all combinations of the variables exist in the data"
+
+
+```{r, fig.height= 6}
+b_load <- ggplot(subset(prof, avg_cls_students > 50)  ) +
+  geom_linerange( aes( x = reorder( as.factor(prof_id),avg_cls_students),
+                       ymin = 0, 
+                       ymax = avg_cls_students
+                       #linetype = gender 
+                       ),
+                       size = 1 ) +
+  
+  geom_point( aes(x = as.factor(prof_id), y = avg_cls_students, 
+                  size =  k_courses ,
+                  color = as.factor(k_courses))) +
+  
+  coord_flip()
+
+b_load
+```
+
+
+
+
+
+
+#### Demo - Small multiples with facet_wrap
+Explore average class load by rank
+```{r}
+b_load + facet_wrap( rank ~ . )
+```
+
+
+Explore average class load by rank and ethnicity
+```{r}
+b_load + facet_wrap( rank ~ ethnicity )
+```
+
+
+Add as many discrete variables as desired for the small multiples and it will continue wrapping. **What happens if we use the `ncol= 2` parameter?**
+```{r fig.height = 6}
+b_load + facet_wrap( . ~ rank + ethnicity + gender)
+```
+
+
+
+
+
+
+
+
+
+#### Demo - Small multiples with facet_grid
+
+What if we wanted a grid with all the possible combination between the variables we are faceting by?
+
+Using `facet_grid()` forces a box for every combination of the variables used for subsetting for which there is data. 
+
+```{r fig.height = 6}
+b_load + facet_grid( rank ~ ethnicity + gender)  
+```
+
+Wouldn't it be nicer to only keep values relevant to each panel on the axes? We can do that. 
+
+```{r fig.height= 6}
+b_load + facet_grid( rank ~ ethnicity + gender, 
+                     scales = "free") # Try "free_y" or "free_x"
+
+                                                
+```
+
+
+Check out the documentation on [facet_grid](https://ggplot2.tidyverse.org/reference/facet_grid.html) and [facet_wrap](https://ggplot2.tidyverse.org/reference/facet_wrap.html)
+
+
+
+
+
+
+
+#### ACTIVITY 3: Bring it all together with small multiples
+
+This activity is an opportunity to use faceting to uncover stories behind the data by exploring subgroups.
+
+Remember that you can explore univariate (one variable), bivariate (two variables), and multivariate (multiple variable) relationships. As a refresher, check out the activities from session 1 where we visualized distributions, the barchart from the challenge, and the scatter plots and lollipop plots explored in this session. 
+
+
+Possible questions to consider: 
+
+  1. Course evaluation - Is there any relationship between class size and course evaluation score? Does this vary whether it is an upper level or lower level course?  
+
+
+  2. Beauty scores - Is there a relationship between perceived beauty of instructors and their average evaluation score? Does this differ by other demographic characteristics. 
+
+  3. Department pictures - Do professor tend to dress in formal attire? Does this differ by demographic characteristics or tenure rank?
+
+  4. Any question of choice.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Themes
+Theme layer provides a systematic way of changing the position and attributes (e.g. color and size) of non-data visual elements. 
+
+There are 7 built-in themes available via ggplot that style our plots, some of which we have already used. There are packages available that make additional themes available.
+
+The goal of this section is to understand how to tweak non-data elements in our visualization. 
+
+
+#### Demo - Customizing plots by tweaking themes 
+
+Remember our plot from earlier? Wouldn't it be helpful to not  have vertical text? We can do that with the theme layer:
+
+```{r fig.height = 6}
+b_load + facet_grid( rank ~ ethnicity + gender, scale = "free") +
+  theme(strip.text.y = element_text(angle=0)) 
+```
+
+
+
+
+
+
+
+
+
+
+While we are at it, wouldn't it be great to customize other aspects of the panels? We can do that with the theme layer:
+
+```{r fig.height = 6}
+b_load + facet_grid( rank ~ ethnicity + gender, scale = "free") +
+  theme(strip.text.y      = element_text(angle=0),
+        strip.background  = element_blank()
+        #panel.grid       = element_line(color = "grey"),
+        #panel.border     = element_rect(color = "blue", fill = NA, size = .5),
+        #panel.background = element_blank()
+        ) 
+```
+
+
+
+#### Demo - Breaking down how themes work
+
+
+The three types of visual elements found in a plot can be modified using the appropriate parameter within the `themes()` function.  
+
+
+Plot visual element  |Element function   |
+---------------------|-------------------|
+text                 |element_text()     |   
+line                 |element_line()     |
+rectangle            |element_rect()     |
+removes element      |element_blank()    |
+
+
+
+```{r}
+g2 <-  ggplot(prof, aes( x = avg_course_eval, y = avg_prof_eval, color = gender )) + 
+  
+      geom_jitter( size = 2) +
+  
+      facet_grid(rank ~ ethnicity ) +
+
+
+      labs(title= "This is my main title",
+         x= "My x axis title",
+         y= "My Y axis title")
+
+
+g2 + theme_bw()
+
+```
+
+
+
+
+
+*Modifying text*
+theme() function parameter for each text visual element
+
+
+Visual element  |Theme function argument|
+----------------|-----------------------|
+text            |text=                  |   
+text            |title=                 |                
+text            |plot.title=            |
+legend          |legend.text=           |
+legend          |legend.title=          |
+axes            |axis.title.x=          |
+axes            |axis.title.y=          |
+axes            |axis.text=             |
+axes            |axis.text.x=           |
+axes            |axis.text.y=           |
+facets          |strip.text=            |
+facets          |strip.text.x=          |
+facets          |strip.text.y=          |
+
+
+```{r}
+g2 + 
+  theme( axis.title= element_text(family ="mono",
+                                  hjust= 0,
+                                  face= "italic",
+                                  size = 20
+                                  ))
+```
+Note: To use Arial font they we need to load it. Three device-independent font family names we can use for now: "sans" for a sans-serif font, "serif" for a serif font and "mono" for a monospaced font. See `?windowsFonts()`.
+
+
+
+
+
+
+*Modifying lines*
+theme() function parameter for each line visual element
+
+Visual element  |Theme function argument|
+----------------|-----------------------|
+line            |line=                  | 
+axes            |axis.ticks=            |
+axes            |axis.ticks.x=          |
+axes            |axis.ticks.y=          |
+axes            |axis.line=             |
+axes            |axis.line.x=           |
+axes            |axis.line.y=           |
+panel           |panel.grid=            |     
+panel           |panel.grid.major=      |
+panel           |panel.grid.minor=      |
+panel           |panel.grid.major.x=    |
+panel           |panel.grid.major.y=    |
+panel           |panel.grid.minor.x=    |
+panel           |panel.grid.minor.y=    |
+                
+                
+                
+                
+                
+                
+
+
+
+
+*Modifying rectangles*
+theme() function parameter for each rectangle visual element
+
+Visual element  |Theme function argument  |
+----------------|-------------------------|
+                |rect=                    |       
+ legend         |legend.background=       |       
+ legend         |legend.key=              |               
+ plot area      |panel.background=        |        
+ plot area      |panel.border=            |           
+ plot area      |plot.background=         |        
+ facet          |strip.background=        |        
+
+
+```{r}
+g2 + theme_bw() + 
+  theme( plot.background= element_rect( fill = "blue",
+                                        color = "orange",
+                                        size = 5 
+                                        ))
+```
+
+
+
+
+
+```{r}
+g2 + theme_bw() + 
+  theme( legend.background= element_rect( fill = "blue",
+                                        color = "orange",
+                                        size = 3 
+                                        ))
+```
+
+
+
+```{r}
+g2 + theme_bw()+
+    theme(legend.position = "top",
+        
+        
+        strip.text.y = element_text(color = "grey", 
+                                    angle = 360, 
+                                    size = 10,
+                                    face= "bold",
+                                    hjust = 0,
+                                    vjust = .9),
+        
+        strip.background = element_blank()
+  )
+```
+
+
+
+*Adjusting legend position*
+
+
+Theme function  |Examples     |
+----------------|-------------|
+legend.position=|"none""      |
+legend.position=|"horizontal" |
+legend.position=|"bottom"     |
+legend.position=|c(.6,.8)     |
+ 
+```{r}
+g2 + theme_bw()+
+    theme(legend.position = "top"
+  )
+```
+
+
+
+
+                
+*Adjusting spacing*
+Rectangles in plots have spacing around them such as the spacing between panels or the spacing between the axis labels and the plot rectangle. 
+
+Load the grid library `library(grid)` to specify the desired units for spacing.
+
+Theme function  |Possible values            |
+----------------|---------------------------|
+panel.spacing=  | unit(3,"cm")              |
+plot.margin=    | unit( c( 1,1,1,1), "cm")  |
+              
+```{r}
+
+g2 + theme_bw()+
+    theme(legend.position = "top",
+  
+        panel.spacing = unit(3, "lines"))
+        
+   
+```
+
+Adjust spacing with units
+```{r}
+library(grid)
+
+g2 + theme_bw()+
+    theme(legend.position = "top",
+  
+        panel.spacing = unit(2, "cm"))
+
+```
+
+
+Refer to the [theme()](https://ggplot2.tidyverse.org/reference/theme.html) function documentation for more details on options available and additional examples. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### Demo- Creating an MDRC theme
+
+
+
+*Create an MDRC theme*
+For plot consistency we can modify built-in theme template and save it as a theme object we can apply to our plots. Themes are functions with instructions for what thematic elements to 
+modify and how to do so. 
+
+```{r}
+# May need to install the grid package
+# install.packages("grid")
+
+theme_mdrc <- function(base_size = 9, base_family= "") {
+  require(grid)
+  theme_bw(base_size = base_size, base_family = base_family) %+replace%
+    
+      theme(legend.position = "bottom",
+          
+          panel.spacing = unit(2, "lines"),
+          panel.border = element_blank(),
+        
+          strip.text.y = element_text(color = "grey", 
+                                    angle = 360, 
+                                    size = 10,
+                                    face= "bold",
+                                    hjust = 0,
+                                    vjust = .9),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+        
+          strip.background = element_blank()
+          
+      )
+  
+  
+}
+  
+
+
+```
+
+
+See [documentation on getting, setting, and modifying themes](https://ggplot2.tidyverse.org/reference/theme_get.html) for more details. 
+
+
+
+```{r}
+g2 + theme_mdrc()
+```
+
+MDRC Color palette
+
+```{r}
+mdrc_blue   <- c("#cae3eb", "#63b6cf", "#00558C", "#002B49") 
+mdrc_orange <- c("#F9DABC", "#EFA967", "#D57800")
+mdrc_brown  <- c("#D9C89E", "#A89968", "#816040")
+mdrc_green  <- c("#DAE6D6", "#A1BD7A", "#538549")
+mdrc_black  <- c("#e6e7e7", "#b1b3b5", "#808284", "#000000")
+  
+```
+
+
+Apply MDRC color palette to a plot
+```{r}
+g2 + 
+  theme_mdrc() + 
+  scale_color_manual(values= mdrc_blue)
+```
+
+
+
+
+set the default theme for all subsequent plots
+```{r}
+theme_set(theme_mdrc())
+```
+
+```{r}
+g2
+```
+
+This graphic uses up to 10 different colors. In this example we combine the different palettes to create a vector with up to 10 different colors. 
+
+```{r}
+fig1 <- b_load + scale_color_manual(values = c(mdrc_blue,
+                                       mdrc_orange,
+                                       mdrc_brown,
+                                       mdrc_green))
+fig1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Output graphics
+
+#### Figure file names
+Setting up the file paths upfront can make it easier to maintain. This can become part of your documentation block at the beginning on your program. Note the use of relative paths. 
+
+```{r}
+fig_dir1 <- "doc"
+fig1_path <- paste0(fig_dir1,"/figure1_",Sys.Date())
+fig2_path <- paste0(fig_dir1,"/figure2_",Sys.Date())
+```
+
+
+
+
+
+
+
+#### Export to SVG
+Use the file path and figure names set up in the documentation block. 
+```{r}
+svg(paste0(fig1_path,".svg"))
+fig1
+dev.off()
+```
+
+
+
+
+
+
+
+#### Export to PDF
+
+```{r}
+pdf(paste0(fig1_path,".pdf"))
+fig1
+dev.off()
+```
+
+
+Check out the handy resources on [exporting to different formats](http://www.cookbook-r.com/Graphs/Output_to_a_file/).
+
+
+
+
+
+
+### Debrief
+
+We covered so much information! Let's debrief on what stood out to you.
+
+In the upcoming days check out our data visualization yammer group for examples of additional graphs we did not get to cover in this training.
+
+
+Check out some bonus content below and post on yammer if you have any questions. 
+
+
+
+
+
+
+
+
+*******
+
+### BONUS - For your reference
+
+
+#### Statistics layer of ggplot
+
+**Some geoms transform the data before plotting**
+
+To create the bar chart we first created a frequency table using the `dplyr` package and then we provided that table to the `geom_col()` layer to plot the count and proportions we calculated. 
+
+Typically we work with the data until we have a a summary data set with numbers we want to plot. These may vary from simple descriptive statistics to more complex statistics from statistical models.
+
+
+However, when using ggplot there are geoms functions that transform the data provided before plotting it. These geoms have a `stat_` function associated with them which dictate how the data provided is transformed before the plot is made. The `geom_histogram()` function takes the raw values and computes various statistics (quartiles, median, outlines) necessary to create the box plot.
+
+We can use the `geom_bar()` function to recreate our bar plot by instructing ggplot to compute the count and proportion for us.Behind the scenes it uses the `stat_count()` function to compute a table with temporary variables `..count..` and `..prop..` that we can assess. By default it uses `..count..` for the y aesthetic mapping. Similar to any other function, type `?geom_bar()` on the console to reference the help pages. 
+
+
+
+```{r}
+ggplot(prof, aes(x= rank, y = ..count.. )) +
+geom_bar(width = 0.4)
+
+```
+
+
+Accomplish the same plot using stat_count() and the geometry associated with that statistical function.
+```{r}
+ggplot(prof) +
+  stat_count( mapping = aes(x = rank), 
+              geom = "bar",
+              position = "dodge", 
+              width = 0.4) 
+```
+
+
+
+Plotting the proportion for bar graphs
+
+
+```{r}
+ggplot(prof, aes(x= rank, y = ..prop.., group = 1 )) +
+geom_bar()
+
+```
+
+
+
+
+Plotting density instead of frequencies when creating histograms makes it possible to overlay density plot
+
+```{r}
+ggplot(prof, mapping = aes( x = age)) +
+  geom_histogram(aes(y = ..density..), # Plot density instead of frequencies
+                 color = "black",
+                 fill = "orange", size = 15,
+                 bins = 5) +
+  geom_density(color = "blue", size = 2)
+```
+
+
+
+
+**Advance use of stat functions and custom layers beyond the scope of this training**
+
+For this training we are focusing on visualizing data as we provide to geom functions or as  transformed by desired geoms (e.g.histogram, density plot, trend lines). 
+
+However, note that it is possible to [plot result from your own functions](http://rstudio-pubs-static.s3.amazonaws.com/3365_9573f6d661b444499365fe1841ee65d3.html) and [indicate a summary function to be visualized](https://ggplot2.tidyverse.org/reference/stat_summary.html) with the plot associated with that function and [define your own layer to be plotted](https://ggplot2.tidyverse.org/reference/layer.html)
+
+
+
+
+
+
+#### Factors: Order of factors affect how graphs are made
+
+Creating a table and a factor version of the variable rank:
+```{r}
+tb_rank_eth <- prof %>% 
+  group_by(rank) %>% 
+  mutate(k_rank = n()) %>% 
+  group_by(rank, ethnicity) %>% 
+  mutate(k_rank_eth = n(), prop = round(k_rank_eth/ k_rank, 2)) %>% 
+  select(rank, ethnicity,k_rank, k_rank_eth, prop) %>% 
+  distinct() %>% 
+  arrange(rank) 
+
+tb_rank_eth
+```
+  
+```{r}
+tb_rank_eth2 <- tb_rank_eth %>% 
+  # Creating an ordered categorical variable (factor) as I indicate
+  mutate(rankf = factor(rank, levels = c("teaching", "tenured", "tenure track"))) 
+tb_rank_eth2
+```
+
+
+```{r}
+str(tb_rank_eth2)
+```
+
+
+
+Notice the order in which the pie charts are plotted matches the order of the levels we specified for the `rankf` variable. 
+
+```{r}
+ggplot(tb_rank_eth2) + 
+  
+  geom_col(aes(x= "", y=prop, fill= ethnicity)) + 
+  
+  coord_polar("y", start= 0) + # Turns barchart to pie charts
+  
+  theme_void() + # Removing polar coordinates and non-data ink
+  
+  facet_wrap(~ rankf, ncol = 1) # Making small multiples
+```
+
+
+
+Factors affect color aesthetic mapping
+
+Continuous variable used for color:
+```{r}
+ggplot(evals3, mapping = aes( x = cls_students, y = course_eval, color = prof_eval)) +
+  geom_jitter()
+```
+
+Categorical version of variable used for color:
+```{r}
+ggplot(evals3, mapping = aes( x = cls_students, y = course_eval, color = as.factor(prof_eval))) +
+  geom_jitter()
+```
+
+
+
+The impact of factors on output produced is not limited to graphics only. 
+
+Compare the order of the frequency tables below:
+```{r}
+tb_rank_eth2 %>% ungroup() %>%  select("rank") %>% table()
+```
+
+```{r}
+tb_rank_eth2 %>% ungroup() %>%  select("rankf") %>% table()
+```
+
+
+
+
+
+Why use `ungroup()` function? A side note about dplyr as an FYI. In depth discussion beyond the scope of this class. Key point is to ungroup after using any group_by functions with dplyr to avoid unexpected output. 
+
+```{r}
+tb_rank_eth2 %>% select("rank") %>% table()
+```
+
+
+
+#### Coordinate layer: control the plotting dimension and axes
+We have already used the `coord_flip()` function to turn a vertical bar chart into a horizontal bar chart by flipping the coordinates. There is more that we can do to work with coordinates. 
+
+Automatic decisions about the coordinate system are made by ggplot based on the variables mapped onto the x and y axes. There are a series of coordinate  (`coord_*()`)and scale (`scale_*()`) functions which adjust axes, including:
+
+1. `coord_flip()` to flip the x and Y axis as we have seen in previous examples where we turned vertical bar graphs to horizontal bar graphs.
+
+2. `coord_cartesian()` to adjust Cartesian coordinates and `scale_x_continuous()`,`scale_y_continous()`, `scale_x_discrete()`, and `scale_y_discrete()` to  adjust axes across different types of coordinates.
+
+Extend the range of the y axis with the `ylim=` argument within the `coord_cartesian()` function. 
+
+
+   
+#### Formating the axes 
+
+```{r}
+
+ggplot(prof, aes(x= rank, y = ..prop.., group = 1 )) +
+geom_bar() +
+  
+# May need to install the scales package  
+scale_y_continuous(labels=scales::percent) # Turns values into %
+
+```
+
+
+
+
+
+
+##### Adjusting the range of the axis
+
+Extend the range of the y axis with the `ylim=` argument within the `coord_cartesian()` function. 
+
+
+Lets explore the relationship between class size (`cls_students`) and course evaluation score (`course_eval`) across all courses using the course level data (`evals3`). The `geom_smooth()` function and it's default `method=loess` option shows the Locally Estimated Scatter plot Smoothing regression.
+  
+```{r}
+ggplot(evals3, aes( x = cls_students, y = course_eval, color = gender )) + 
+  
+  geom_jitter( size = 2) +
+  
+  geom_smooth() # Trend line
+
+```
+ 
+ 
+ 
+
+ 
+ Using xlim and ylim extends of reduces the range of the axes without affecting the underlying data and plot. In this case it is similar to cropping the graph. 
+  
+```{r}
+ggplot(evals3, aes( x = cls_students, y = course_eval, color = gender )) + 
+  
+  geom_jitter( size = 2) +
+  
+  geom_smooth() + # Trend line
+  
+  coord_cartesian(xlim=c(0,200)) 
+```
+
+The same result can be accomplished with the `scale_x_continuous()` and its `limits=` option. Note that the same options can be used with the y axis functions. 
+
+```{r}
+ggplot(evals3, aes( x = cls_students, y = course_eval, color = gender )) + 
+  
+  geom_jitter( size = 2) +
+  
+  geom_smooth() + # Trend line
+  
+  scale_x_continuous( limits =c(0,200)) # Uses limits instead of xlim
+```
+
+
+
+Within these functions you can use additional options to control other aspects of the axes. The `breaks=` option controls the tick marks used on the plot. Learn more from the documentation by typing a question mark followed by the function name on the console (`?scale_y_continuous()`).
+
+```{r}
+
+# Storing base plot 
+fig_ceval <- ggplot(evals3, aes( x = cls_students, y = course_eval, color = gender )) + 
+  
+  geom_jitter( size = 2) +
+  
+  geom_smooth(linetype = 5)  # Trend line
+  
+  
+  
+  
+
+
+
+# Modifying base plot
+  fig_ceval +
+  
+  scale_x_continuous( limits =c(0,200)) + # Uses limits instead of xlim
+  
+  
+
+  scale_y_continuous(breaks = c(2.5,3.1, 3.2, 3.3, 5)) # Granular control
+```
+
+
+##### When to use `coord_cartesian(xlim=c(__,__))` vs.`scale_x_continuous(limits=c(__,__))`?
+
+Scenarios when you are zooming in to a section of the plot by narrowing the range of data shown can be affected by the function used.
+
+**What happens when we adjust the x axis using the two option described above?**
+
+
+Zoom in on the class size between 0 and 75 students by narrowing the range of the x axis using the `coord_cartesian(xlim=c(__,__))` function:
+
+
+```{r}
+fig_ceval + coord_cartesian(xlim=c(50,200)) 
+```
+
+Zoom in on the class size between 0 and 75 students by narrowing the range of the x axis using the `scale_x_continuous(limits=c(__,__))` function:
+
+```{r}
+fig_ceval + scale_x_continuous(limits=c(50,200)) 
+```
+
+
+
+#### Scales - Control all aspects of aesthetics from scales
+
+Control colors for discrete scale.
+```{r fig.height=6}
+ggplot(evals3, aes( x = course_eval, y = prof_eval, 
+                    color = cls_credits)) + 
+  
+  geom_jitter( alpha = 0.5)+ 
+  geom_smooth()+
+  
+  scale_color_manual(values = c("blue", "red"))
+   
+```
+
+Control the color for continous scale with a gradient. More options available, see documentation. 
+```{r fig.height=6}
+ggplot(evals3, aes( x = course_eval, y = prof_eval, 
+                    color = age )) + 
+  
+    geom_jitter( alpha = 0.5)+ 
+  #geom_point()+
+  geom_smooth()+
+
+  
+   scale_color_gradient(low = "red", high = "black",
+                        na.value = "grey50", 
+                        guide = "legend", # Type of legend
+                        aesthetics = "colour")
+```
+
+
+
+
+
+
+##### Changing coordinates
+
+Switching the coordinate system from Cartesian to polar using the `coord_polar()` function.
+
+Stacked bar chart of proportions
+
+```{r}
+tb_rank_eth <- prof %>% 
+  group_by(rank) %>% 
+  mutate(k_rank = n()) %>% 
+  group_by(rank, ethnicity) %>% 
+  mutate (k_rank_eth = n(), prop = round(k_rank_eth/ k_rank, 2 )) %>% 
+  select("rank", "ethnicity", "k_rank", "k_rank_eth", "prop") %>% 
+  distinct() %>% 
+  arrange(rank)
+
+tb_rank_eth
+```
+
+Stacked bar chart
+
+```{r}
+fig_rank_eth <- ggplot(filter(tb_rank_eth, rank == "tenured")) +
+  
+  geom_col(aes(x= rank, y=prop, fill=ethnicity)) 
+
+fig_rank_eth
+```
+
+
+
+```{r}
+fig_rank_eth +
+  
+  coord_polar("y", start= 0) # What  happens when value of start is change? (try 180)
+```
+
+
+
+Mapping an x variable with multiple values creates nested donut charts. 
+
+```{r}
+ggplot(tb_rank_eth) + # No longer filtering to tenured rank
+  
+  geom_col(aes(x= rank, y=prop, fill= ethnicity)) + 
+  
+  coord_polar("y", start= 0) 
+  
+```
+
+
+
+
+Using a dummy x value and facets to create multiple pie charts by rank.
+
+
+```{r}
+ggplot(tb_rank_eth) + # No longer filtering to tenured rank
+  
+  geom_col(aes(x= "", y=prop, fill= ethnicity)) + 
+  
+  coord_polar("y", start= 0) +
+  
+  theme_void() +
+  
+  facet_wrap(~ rank , ncol = 1)
+```
+
+
+
+**Key points about coordinates**
+1.Functions are available to adjust the default assumptions made by ggplot based on your data.
+
+2.Adjusting the axes range can change the data values plotted. In the example above, `geom_smooth()` computes and plots local averages from your data. By zooming using the scale function `scale_x_continuous(limits=c(__,__))` we filtered the data and influenced the local averages computed by the loess local regression method.
+
+3. We have control about scales in facets. 
+
+
+
+
+
